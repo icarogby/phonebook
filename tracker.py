@@ -16,13 +16,15 @@ print(f"HOST: {host} PORT: {port}")
 clt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 # Socket servidor
-svr = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+svr = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 svr.bind((host, port))
 svr.listen(5)
 
 def server():
     global peers_list
     global connect_to
+    global clt
+    global svr
 
     while True:
         con, adr = svr.accept()
@@ -33,6 +35,9 @@ def server():
             #recebe a mensagem do ultimo par da rede ou de novo par
             data = con.recv(1024)
             commands = data.decode("utf-8")
+
+            if not data:
+                break
             
             for command in commands.split("X"):
                 if command == "":
@@ -63,31 +68,36 @@ def server():
                         # novo ultimo par, esse é seu id
                         clt.send(f"ID;NEW_ID;{len(peers_list) - 1}X".encode("utf-8"))
                         
-                        break
-          
                 elif(data1[0] == "P"):
-                    clt.send(command.encode("utf-8"))
+                    clt.send(f"{command}X".encode("utf-8"))
                 
                 elif(data1 == "TK"):
                     # TK, REMOVE_FROM_LIST, NUMERO DO PEER QUE SAIU
                     if(data2 == "REMOVE_FROM_LIST"):
                         if data3 == str(len(peers_list) - 1):
                             del peers_list[-1]
+
                             clt.send(f"P{len(peers_list) - 1};CONNECT_WITH;{peers_list[0]}X".encode("utf-8"))
                         elif data3 != "1":
                             #numero do peer que saiu
                             quit_number = int(data3)
                             del peers_list[quit_number]
+                            
                             before_number = quit_number - 1
-                            after_ip = peers_list[quit_number + 1]
+                            after_ip = peers_list[quit_number]
 
                             clt.send(f"P{before_number};CONNECT_WITH;{after_ip}X".encode("utf-8"))
                             clt.send(f"P{quit_number + 1};NEW_ID;{quit_number}X".encode("utf-8"))
                         if data3 == "1":
                             del peers_list[1]
+                            clt.close()
+
+                            clt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                            clt.connect(peers_list[1])
+
                             clt.send(f"P2;NEW_ID;{1}X", peers_list[1])
-                    elif(data2 == "DEBUG"):
-                        print(f"{data3}")
+                elif(data1 == "SC"):
+                    clt.send(f"{command}X".encode("utf-8"))
 
 for i in range(4):
     Thread(target=server).start()

@@ -26,11 +26,11 @@ clt.send(f"ID;{peer_ip};{peer_port}".encode("utf-8"))
 def check():
     return True
 
-def server():
+def peer():
     global id
     global connect_to
     global clt
-
+    global contact_list
 
     while True:
         con, adr = svr.accept()
@@ -38,6 +38,9 @@ def server():
         while True:
             data = con.recv(1024)
             commands = data.decode("utf-8")
+
+            if not data:
+                break
 
             for command in commands.split("X"):
                 if command == "":
@@ -47,30 +50,86 @@ def server():
 
                 data1, data2, data3 = command.split(";")
 
-                if (data1 == "ID") and (id == 0):
-                    id = data3
-                    print(f"MEU NOVO ID: {id}")
-
-                elif data1 != f"P{id}":
-                    clt.sendto(f"{command}X".encode("utf-8"), connect_to) # envia a mensagem codificada em bits
-
-                elif data1 == f"P{id}":
-                    if data2 == "CONNECT_WITH":
-                        clt.close()
-                        
-                        connect_to = (data3[2:16], int(data3[19:23]))
-                        print(connect_to)
-                        clt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                        clt.connect(connect_to)
-
-                    if data2 == "NEW_ID":
+                if (data1 == "ID"):
+                    if id == 0:
                         id = data3
-                        data3 = int(data3) + 1
-                        clt.sendto(f"{data1};{data2};{data3}X".encode("utf-8"), connect_to)
-                    if data2 == "CHECK_CONTACT":
-                        result = check(data3)
+                        print(f"MEU NOVO ID: {id}")
+                    else:
+                        clt.send(f"{command}X".encode("utf-8"))
 
-                        if result == False:
-                            clt.sendto(data, connect_to)
+                elif data1[0] == f"P":
+                    if data1 != f"P{id}":
+                        clt.send(f"{command}X".encode("utf-8"))
 
-Thread(target=server).start()
+                    elif data1 == f"P{id}":
+                        if data2 == "CONNECT_WITH":
+                            clt.close()
+                            
+                            connect_to = (data3[2:16], int(data3[19:23]))
+                            print(connect_to)
+                            clt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                            clt.connect(connect_to)
+                            print("Conectado com o novo par")
+
+                        if data2 == "NEW_ID":
+                            id = data3
+                            data3 = int(data3) - 1
+                            clt.send(f"{data1};{data2};{data3}X".encode("utf-8"))
+                        
+                        if data2 == "FINDED":
+                            print(f"Contato encontrado: {data3}")
+                
+                elif data1 == "SC":
+                        if data3 in contact_list:
+                            clt.send(f"{data2};FINDED;{contact_list[data3]}".encode("utf-8"))
+                            print(f"Achado aqui: {contact_list[data3]}")
+                        else:
+                            if data2 == f"P{id}":
+                                print("Contato não encontrado")
+                            else:
+                                clt.send(f"{command}X".encode("utf-8"))
+                        
+
+def user_commands():
+    global clt
+
+    while True:
+        print("\nLISTA TELEFONICA")
+        print("1 - Adicionar contato")
+        print("2 - Listar contatos")
+        print("3 - Buscar contato")
+        print("4 - Meu ID")
+        print("5 - Meus pares")
+        print("6 - Sair")
+        
+        command = int(input("\nDigite o comando: "))
+
+        if command == 1:
+            name = input("Nome: ")
+            number = input("Número: ")
+
+            contact_list[name] = number
+            print("\nContato salvo")
+        
+        if command == 2:
+            print(contact_list)
+        
+        if command == 3:
+            name = input("Nome: ")
+            
+            if name in contact_list:
+                print(contact_list[name])
+            else:
+                clt.send(f"SC;P{id};{name}".encode("utf-8"))
+        if command == 4:
+            print(id)
+        
+        if command == 5:
+            print(connect_to)
+        if command == 6:
+            clt.send(f"TK;REMOKE_FROM_LIST;P{id}".encode("utf-8"))
+            print("program closed")
+
+
+Thread(target=peer).start()
+Thread(target=user_commands).start()
