@@ -1,30 +1,34 @@
 import socket
 from threading import Thread
 from random import randint
+from time import sleep
 
+# Endereço desse peer
 peer_ip = socket.gethostbyname(socket.gethostname())
-peer_port = randint(2001, 3000)
+peer_port = randint(2001, 9999)
 
 tracker_port = 2000
 
+# ID do peer
 id = 0
+# Lista de contatos desse peer
 contact_list = {}
+name = ""
 
 print(f"IP: {peer_ip} PORT: {peer_port}")
 
 tracker_ip = input("Digite o endereço ip do super nó: ")
 connect_to = (tracker_ip, tracker_port)
 
+# Socket servidor
 svr = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 svr.bind((peer_ip, peer_port))
 svr.listen(5)
 
+# Socket cliente ja envia mensagem de identificação
 clt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 clt.connect((tracker_ip, tracker_port))
 clt.send(f"ID;{peer_ip};{peer_port}".encode("utf-8"))
-
-def check():
-    return True
 
 def peer():
     global id
@@ -33,67 +37,76 @@ def peer():
     global contact_list
 
     while True:
+        # Aceita conexão pelo lado servidor
         con, adr = svr.accept()
 
         while True:
+            #recebe a mensagem do peer anterior ou tracker
             data = con.recv(1024)
             commands = data.decode("utf-8")
 
+            # Se uma conexão for fechada, sai do loop e espera uma nova conexão
             if not data:
                 break
-
-            for command in commands.split("X"):
+            
+            # Separa e executa os comandos
+            for command in commands.split("|"):
                 if command == "":
                     continue
-
-                print(f"Comando recebido por p{id}: {command}") 
-
+                
+                # data1 = Destino | data2 = Comando | data3 = Informação personalizada
                 data1, data2, data3 = command.split(";")
 
+                # ID de quanto entra na rede, mas pode mudar depois
                 if (data1 == "ID"):
                     if id == 0:
                         id = data3
-                        print(f"MEU NOVO ID: {id}")
                     else:
-                        clt.send(f"{command}X".encode("utf-8"))
+                        clt.send(f"{command}|".encode("utf-8"))
 
+                # Caso a mesagem recebida for para um peer. Se for para esse peer,
+                # executa o comando, se não, repassa para o proximo peer
                 elif data1[0] == f"P":
                     if data1 != f"P{id}":
-                        clt.send(f"{command}X".encode("utf-8"))
+                        clt.send(f"{command}|".encode("utf-8"))
 
                     elif data1 == f"P{id}":
+                        # Atualiza a conexao do lado cliente
                         if data2 == "CONNECT_WITH":
                             clt.close()
                             
                             connect_to = (data3[2:16], int(data3[19:23]))
-                            print(connect_to)
                             clt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                             clt.connect(connect_to)
-                            print("Conectado com o novo par")
 
+                        # Recebe um novo id e manda o proximo peer atualizar também
                         if data2 == "NEW_ID":
                             id = int(data3)
                             data3 = id + 1
-                            clt.send(f"P{int(data1[1])+1};{data2};{data3}X".encode("utf-8"))
+                            clt.send(f"P{int(data1[1])+1};{data2};{data3}|".encode("utf-8"))
                         
                         if data2 == "FINDED":
                             print(f"Contato encontrado: {data3}")
+                            contact_list[name] = data3
                 
+                # Caso a mensagem recebida for de busca
                 elif data1 == "SC":
                         if data3 in contact_list:
-                            clt.send(f"{data2};FINDED;{contact_list[data3]}".encode("utf-8"))
-                            print(f"Achado aqui: {contact_list[data3]}")
+                            clt.send(f"{data2};FINDED;{contact_list[data3]}|".encode("utf-8"))
                         else:
                             if data2 == f"P{id}":
                                 print("Contato não encontrado")
                             else:
-                                clt.send(f"{command}X".encode("utf-8"))
+                                clt.send(f"{command}|".encode("utf-8"))
+                
+                # Caso a mensagem recebida for para o tracker
                 elif data1 == "TK":
-                    clt.send(f"{command}X".encode("utf-8"))
+                    clt.send(f"{command}Z".encode("utf-8"))
                         
-
+# Função para interagir com o usuário
 def user_commands():
     global clt
+    global name
 
     while True:
         print("\nLISTA TELEFONICA")
@@ -123,6 +136,8 @@ def user_commands():
                 print(contact_list[name])
             else:
                 clt.send(f"SC;P{id};{name}".encode("utf-8"))
+                sleep(2)
+        
         if command == 4:
             print(id)
         
@@ -133,7 +148,6 @@ def user_commands():
             clt.close()
             svr.close()
             print("program closed")
-
 
 Thread(target=peer).start()
 Thread(target=user_commands).start()
