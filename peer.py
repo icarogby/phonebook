@@ -72,9 +72,9 @@ def peer():
                             print("Conectado com o novo par")
 
                         if data2 == "NEW_ID":
-                            id = data3
-                            data3 = int(data3) - 1
-                            clt.send(f"{data1};{data2};{data3}X".encode("utf-8"))
+                            id = int(data3)
+                            data3 = id + 1
+                            clt.send(f"P{int(data1[1])+1};{data2};{data3}X".encode("utf-8"))
                         
                         if data2 == "FINDED":
                             print(f"Contato encontrado: {data3}")
@@ -88,6 +88,8 @@ def peer():
                                 print("Contato não encontrado")
                             else:
                                 clt.send(f"{command}X".encode("utf-8"))
+                elif data1 == "TK":
+                    clt.send(f"{command}X".encode("utf-8"))
                         
 
 def user_commands():
@@ -100,7 +102,7 @@ def user_commands():
         print("3 - Buscar contato")
         print("4 - Meu ID")
         print("5 - Meus pares")
-        print("6 - Sair")
+        print("6 - Sair da rede")
         
         command = int(input("\nDigite o comando: "))
 
@@ -127,7 +129,9 @@ def user_commands():
         if command == 5:
             print(connect_to)
         if command == 6:
-            clt.send(f"TK;REMOKE_FROM_LIST;P{id}".encode("utf-8"))
+            clt.send(f"TK;REMOVE_FROM_LIST;P{id}".encode("utf-8"))
+            clt.close()
+            svr.close()
             print("program closed")
 
 
