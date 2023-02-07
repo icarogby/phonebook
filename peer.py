@@ -53,6 +53,8 @@ def peer():
             for command in commands.split("|"):
                 if command == "":
                     continue
+
+                print(f"Comando recebido pelo peer: {command}")
                 
                 # data1 = Destino | data2 = Comando | data3 = Informação personalizada
                 data1, data2, data3 = command.split(";")
@@ -74,8 +76,13 @@ def peer():
                         # Atualiza a conexao do lado cliente
                         if data2 == "CONNECT_WITH":
                             clt.close()
-                            
-                            connect_to = (data3[2:16], int(data3[19:23]))
+
+                            debug1 = data3.split(",")
+                            debug2 = debug1[0][2:-1]
+                            debug3 = int(debug1[1][1:-1])
+
+                            connect_to = (debug2, debug3)
+                            print(f"Conectando com {connect_to}")
                             clt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                             clt.connect(connect_to)
 
@@ -148,6 +155,8 @@ def user_commands():
             clt.close()
             svr.close()
             print("program closed")
+        else:
+            print("Comando inválido")
 
 Thread(target=peer).start()
 Thread(target=user_commands).start()
