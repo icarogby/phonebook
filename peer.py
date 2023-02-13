@@ -3,8 +3,16 @@ from threading import Thread
 from random import randint
 from time import sleep
 
+
 # Endereço desse peer
-peer_ip = socket.gethostbyname(socket.gethostname())
+
+try:
+    addr_ip = [(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close())
+               for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]
+except:
+    print("sgsgsd")
+
+peer_ip = addr_ip
 peer_port = randint(2001, 9999)
 
 tracker_port = 2000
