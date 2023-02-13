@@ -1,3 +1,4 @@
+import os
 import socket
 from threading import Thread
 from random import randint
@@ -160,11 +161,11 @@ def user_commands():
             print(connect_to)
         if command == 6:
             clt.send(f"TK;REMOVE_FROM_LIST;P{id}".encode("utf-8"))
+
             clt.close()
             svr.close()
             print("program closed")
-        else:
-            print("Comando inválido")
+            os._exit(0)
 
 Thread(target=peer).start()
 Thread(target=user_commands).start()

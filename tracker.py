@@ -55,11 +55,17 @@ def tracker():
                 # Novo peer entra na rede e pede para receber identificação
                 if(data1 == "ID"):
                     peers_list.append((adr[0], int(data3)))
+                    print(peers_list)
 
                     # Se for o primeiro peer da rede, tracker se conecta com ele
                     if(len(peers_list) == 2):
                         connect_to = peers_list[1]
-                        clt.connect(connect_to)
+                        try:
+                            clt.connect(connect_to)
+                        except:
+                            clt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                            clt.connect(connect_to)
+                        
                         clt.send(f"ID;NEW_ID;{len(peers_list) - 1}|".encode("utf-8"))
                     
                     # Se não for o unico par da rede, vai ser o novo ultimo par
